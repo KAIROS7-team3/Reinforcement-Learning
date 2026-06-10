@@ -1,0 +1,14 @@
+[package]
+version = "0.1.0"
+title = "Tool Transfer Bot RL Environments"
+description = "Isaac Lab RL environments for tool transfer robot arm (Track B)"
+category = "robotics"
+keywords = ["robotics", "manipulation", "tool-transfer", "reinforcement-learning"]
+
+[dependencies]
+"isaaclab" = {}
+"isaaclab_assets" = {}
+"isaaclab_tasks" = {}
+
+[[python.module]]
+name = "tool_transfer_bot"

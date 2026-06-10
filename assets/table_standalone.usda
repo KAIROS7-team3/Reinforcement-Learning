@@ -1,0 +1,129 @@
+#usda 1.0
+(
+    defaultPrim = "table"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def "table" (
+    delete apiSchemas = ["PhysxMeshMergeCollisionAPI", "PhysicsMeshCollisionAPI", "PhysicsCollisionAPI"]
+    prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI", "PhysxMeshMergeCollisionAPI"]
+    prepend payload = @./table.usdz@
+)
+{
+    quatf xformOp:orient = (1, 0, 0, 0)
+    float3 xformOp:scale = (0.001, 0.001, 0.001)
+    double3 xformOp:translate = (0, 0, 0)
+    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+    over "MeshInstance"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_1"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_2"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_3"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_4"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_5"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_6"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_7"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_8"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_9"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+    over "MeshInstance_10"
+    {
+        over "본체1" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysxTriangleMeshCollisionAPI", "PhysicsMeshCollisionAPI"]
+        )
+        {
+            uniform token physics:approximation = "none"
+            bool physics:collisionEnabled = 1
+        }
+    }
+}

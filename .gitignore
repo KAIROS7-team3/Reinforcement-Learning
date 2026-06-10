@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Training artifacts (per design docs: data/ and logs/ are git-excluded)
+data/
+logs/
+outputs/
+*.pt
+*.ckpt
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
