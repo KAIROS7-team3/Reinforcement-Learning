@@ -23,3 +23,23 @@ gym.register(
     },
     disable_env_checker=True,
 )
+
+gym.register(
+    id="Isaac-OpenDrawer-Teacher-Demo-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.teacher_env_cfg:OpenDrawerTeacherEnvCfg_DEMO",
+        "rsl_rl_cfg_entry_point": _PPO_CFG,
+    },
+    disable_env_checker=True,
+)
+
+gym.register(
+    id="Isaac-OpenDrawer-Teacher-Teleop-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.teacher_env_cfg:OpenDrawerTeacherEnvCfg_TELEOP",
+        "rsl_rl_cfg_entry_point": _PPO_CFG,
+    },
+    disable_env_checker=True,
+)

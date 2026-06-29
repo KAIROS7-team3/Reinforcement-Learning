@@ -2,7 +2,7 @@
 
 Each task inherits this and overrides:
   - scene.robot / scene.toolbox  (filled with concrete DOOSAN_E0509_CFG / TOOLBOX_CFG)
-  - scene.drawer_frame target_frames  (correct handle prim for that task)
+  - scene.drawer_frame target_frames  (knob center offset on drawer link; not prim ``handle``)
   - rewards  (task-specific weights / joint names)
   - terminations.task_success  (task-specific threshold)
 """
@@ -14,7 +14,7 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.controllers.differential_ik_cfg import DifferentialIKControllerCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
-from isaaclab.envs.mdp.actions.actions_cfg import DifferentialInverseKinematicsActionCfg
+from isaaclab.envs.mdp.actions.actions_cfg import DifferentialInverseKinematicsActionCfg, JointPositionActionCfg
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
@@ -23,7 +23,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.markers.config import FRAME_MARKER_CFG
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import FrameTransformerCfg
+from isaaclab.sensors import ContactSensorCfg, FrameTransformerCfg
 from isaaclab.sensors.frame_transformer import OffsetCfg
 from isaaclab.utils import configclass
 
@@ -52,7 +52,8 @@ class ToolTransferSceneCfg(InteractiveSceneCfg):
     toolbox: ArticulationCfg = MISSING
 
     # ---- EE FrameTransformer ----
-    # source = robot base_link; target = gripper EE (rh_p12_rn_base)
+    # Control body remains rh_p12_rn_base for DiffIK, but reward/observation TCP is
+    # shifted 160 mm along the gripper-base local +Z axis toward the fingertips.
     ee_frame: FrameTransformerCfg = FrameTransformerCfg(
         prim_path="{ENV_REGEX_NS}/e0509/base_link",
         debug_vis=False,
@@ -61,7 +62,7 @@ class ToolTransferSceneCfg(InteractiveSceneCfg):
             FrameTransformerCfg.FrameCfg(
                 prim_path="{ENV_REGEX_NS}/e0509/rh_p12_rn_base",
                 name="ee_tcp",
-                offset=OffsetCfg(pos=(0.0, 0.0, 0.0)),
+                offset=OffsetCfg(pos=(0.0, 0.0, 0.16)),
             ),
             # Left proximal finger tip
             FrameTransformerCfg.FrameCfg(
@@ -80,6 +81,13 @@ class ToolTransferSceneCfg(InteractiveSceneCfg):
 
     # ---- Drawer handle FrameTransformer (target overridden per task) ----
     drawer_frame: FrameTransformerCfg = MISSING
+
+    # Gripper ↔ arm link contacts (self-collision penalty when EE path cuts through links).
+    robot_self_contacts = ContactSensorCfg(
+        prim_path="{ENV_REGEX_NS}/e0509/rh_p12_rn_.*",
+        filter_prim_paths_expr=["{ENV_REGEX_NS}/e0509/link_[1-5]"],
+        history_length=2,
+    )
 
     # ---- Environment static assets ----
     plane = AssetBaseCfg(
@@ -103,12 +111,57 @@ class ToolTransferSceneCfg(InteractiveSceneCfg):
 
 
 # ---------------------------------------------------------------------------
-# Actions  (DiffIK relative + binary gripper)
+# Actions
 # ---------------------------------------------------------------------------
 
 @configclass
-class ActionsCfg:
-    """delta_pos(3) + delta_quat(4) via IK-relative DLS; gripper binary."""
+class JointActionsCfg:
+    """Absolute joint targets (rad): arm 6-DOF + rh_r1. Finger mimic via sync_gripper_mimic event."""
+
+    joint_action: JointPositionActionCfg = JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[
+            "joint_1",
+            "joint_2",
+            "joint_3",
+            "joint_4",
+            "joint_5",
+            "joint_6",
+            "rh_r1",
+        ],
+        preserve_order=True,
+        use_default_offset=False,
+        scale=1.0,
+    )
+
+
+@configclass
+class TeleopActionsCfg:
+    """Absolute joint targets (rad) for SO ARM teleop — all gripper joints driven (no mimic event)."""
+
+    joint_action: JointPositionActionCfg = JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[
+            "joint_1",
+            "joint_2",
+            "joint_3",
+            "joint_4",
+            "joint_5",
+            "joint_6",
+            "rh_r1",
+            "rh_r2",
+            "rh_l1",
+            "rh_l2",
+        ],
+        preserve_order=True,
+        use_default_offset=False,
+        scale=1.0,
+    )
+
+
+@configclass
+class DiffIKActionsCfg:
+    """Legacy: delta_pos(3) + delta_quat(4) via IK-relative DLS; gripper binary."""
 
     arm_action: DifferentialInverseKinematicsActionCfg = DifferentialInverseKinematicsActionCfg(
         asset_name="robot",
@@ -128,6 +181,10 @@ class ActionsCfg:
         open_command_expr={"rh_r1": 0.0},            # open  = 0 deg
         close_command_expr={"rh_r1": math.radians(60.0)},  # close = 60 deg
     )
+
+
+# Back-compat alias (DiffIK was the original default).
+ActionsCfg = DiffIKActionsCfg
 
 
 # ---------------------------------------------------------------------------
@@ -218,9 +275,6 @@ class ObservationsCfg:
 class EventCfg:
     """Physics DR applied on reset and startup."""
 
-    # startup: toolbox articulation root != USD spawn root (nested with_camera xforms)
-    patch_toolbox = EventTerm(func=mdp.patch_toolbox_root_state, mode="startup")
-
     # startup: material randomization
     robot_friction = EventTerm(
         func=mdp.randomize_rigid_body_material,
@@ -263,9 +317,16 @@ class EventCfg:
         mode="reset",
         params={
             "asset_cfg": SceneEntityCfg("toolbox", joint_names=["drawer_joint"]),
-            "position_range": (-0.005, 0.005),  # ± 5mm — slightly ajar
+            "position_range": (0.0, 0.0),  # fully closed (limits: 0 closed, -0.2 m open)
             "velocity_range": (0.0, 0.0),
         },
+    )
+
+    # Every control step: set mimic finger targets = rh_r1 (same sign)
+    sync_gripper_mimic = EventTerm(
+        func=mdp.sync_gripper_mimic_targets,
+        mode="interval",
+        interval_range_s=(0.0, 0.0),
     )
 
 
@@ -273,6 +334,11 @@ class EventCfg:
 # Rewards  (drawer open — Task 1 / Task 4 pattern)
 # Subclasses override as needed.
 # ---------------------------------------------------------------------------
+
+# Module-level only — must NOT live inside @configclass (would become reward terms).
+_GRIPPER_CLOSED_GATE_CFG = SceneEntityCfg("robot", joint_names=["rh_r1"])
+_DRAWER_GRIPPER_CLOSE_THRESHOLD_RAD = math.radians(30.0)
+
 
 @configclass
 class RewardsCfg:
@@ -282,28 +348,33 @@ class RewardsCfg:
     approach_ee_handle = RewTerm(
         func=mdp.approach_ee_handle,
         weight=2.0,
-        params={"threshold": 0.2},
+        params={"threshold": 0.12, "max_distance": 0.28},
     )
     align_ee_handle = RewTerm(
         func=mdp.align_ee_handle,
         weight=0.5,
+        params={"max_distance": 0.28},
     )
 
-    # stage 2: gripper close around handle
+    # stage 2: fingertip pinch around knob (drawer_frame; not prim ``handle``)
     approach_gripper_handle = RewTerm(
         func=mdp.approach_gripper_handle,
         weight=5.0,
+        params={"z_tol": 0.02, "y_tol": 0.03, "x_tol": 0.025},
     )
     align_grasp_around_handle = RewTerm(
         func=mdp.align_grasp_around_handle,
-        weight=0.125,
+        weight=0.5,
+        params={"z_sigma": 0.015, "y_min_sep": 0.008},
     )
     grasp_handle = RewTerm(
         func=mdp.grasp_handle,
         weight=0.5,
         params={
-            "threshold": 0.03,
-            "open_joint_pos": math.radians(5.0),
+            "threshold": 0.06,
+            "grasp_align_threshold": 0.3,
+            "open_joint_pos": 0.0,
+            "close_joint_pos": math.radians(60.0),
             "asset_cfg": SceneEntityCfg("robot", joint_names=["rh_r1"]),
         },
     )
@@ -312,15 +383,28 @@ class RewardsCfg:
     open_drawer_bonus = RewTerm(
         func=mdp.open_drawer_bonus,
         weight=7.5,
-        params={"asset_cfg": SceneEntityCfg("toolbox", joint_names=["drawer_joint"])},
+        params={
+            "asset_cfg": SceneEntityCfg("toolbox", joint_names=["drawer_joint"]),
+            "gripper_asset_cfg": _GRIPPER_CLOSED_GATE_CFG,
+            "close_threshold": _DRAWER_GRIPPER_CLOSE_THRESHOLD_RAD,
+        },
     )
     multi_stage_open_drawer = RewTerm(
         func=mdp.multi_stage_open_drawer,
         weight=1.0,
-        params={"asset_cfg": SceneEntityCfg("toolbox", joint_names=["drawer_joint"])},
+        params={
+            "asset_cfg": SceneEntityCfg("toolbox", joint_names=["drawer_joint"]),
+            "gripper_asset_cfg": _GRIPPER_CLOSED_GATE_CFG,
+            "close_threshold": _DRAWER_GRIPPER_CLOSE_THRESHOLD_RAD,
+        },
     )
 
     # penalties
+    robot_self_collision = RewTerm(
+        func=mdp.undesired_contacts,
+        weight=-0.05,
+        params={"sensor_cfg": SceneEntityCfg("robot_self_contacts"), "threshold": 1.0},
+    )
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
     joint_vel_l2 = RewTerm(
         func=mdp.joint_vel_l2,
@@ -349,7 +433,7 @@ class ToolTransferBaseEnvCfg(ManagerBasedRLEnvCfg):
 
     scene: ToolTransferSceneCfg = ToolTransferSceneCfg(num_envs=4096, env_spacing=2.5)
     observations: ObservationsCfg = ObservationsCfg()
-    actions: ActionsCfg = ActionsCfg()
+    actions: JointActionsCfg = JointActionsCfg()
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
@@ -363,3 +447,6 @@ class ToolTransferBaseEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.render_interval = self.decimation
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.friction_correlation_distance = 0.00625
+        # Pre-grasp + gripper/drawer contacts scale with num_envs; default 5*2**15 overflows ~2k envs.
+        self.sim.physx.gpu_max_rigid_patch_count = 4 * 5 * 2**15
+        self.scene.robot_self_contacts.update_period = self.sim.dt

@@ -37,7 +37,7 @@ def main():
         args_cli.task,
         device=args_cli.device,
         num_envs=args_cli.num_envs,
-        use_fabric=not args_cli.disable_fabric,
+        use_fabric=False if args_cli.disable_fabric else None,
     )
     env = gym.make(args_cli.task, cfg=env_cfg)
     print(f"[INFO] task={args_cli.task}  obs={env.observation_space}  act={env.action_space}")

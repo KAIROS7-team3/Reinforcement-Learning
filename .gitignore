@@ -10,8 +10,28 @@ dist/
 data/
 logs/
 outputs/
+runs/
+plots/
 *.pt
 *.ckpt
+
+# YOLO datasets (large, generated)
+YOLO/replicator_output/
+YOLO/yolo_seg_dataset*/
+YOLO/__pycache__/
+
+# docs binary assets (sample images, too large for git)
+docs/assets/
+
+# USD backup / intermediate saves
+*.usda.bak
+*.usdz.bak
+assets/toolbox_rl_desk.usda.bak
+assets/toolbox_rl_flat_pre_*.usda
+assets/tools/*.orig.usdz
+
+# Misc generated outputs
+segmentation_result.jpg
 
 # Editor / OS
 .vscode/
